@@ -6,14 +6,15 @@ import requests
 import random
 
 #########---------------------默认第一个实习计划，不可更改#######
-
-
+#  为保证cookie存活，请设置cron表达式为 0 1/1 * * * *  也就是每一分钟一次，本脚本会自动判断时间，早上8点签到，晚上4点日报
+#  cookie,具体查看https://github.com/2331892928/gcsx_dgsx
 Cookie = ""
+#  实习完整区域：城市+区+街道+具体地址
 internshipLocation = "重庆市重庆市江津区科教北路"
+#  实习城市
 city = "重庆市"
+#  日报内容
 dai_reportContent = ""
-
-
 #########---------------------#######
 
 class User_Agent:
@@ -1387,7 +1388,10 @@ class Gcsx:
 # 按间距中的绿色按钮以运行脚本。
 if __name__ == '__main__':
     G = Gcsx()
-
-    G.dai()
+    now_time = datetime.datetime.now()
+    if now_time.hour == 8 and now_time.minute == 0 and now_time.second == 0:
+        G.sign()
+    if now_time.hour == 16 and now_time.minute == 0 and now_time.second == 0:
+        G.dai()
 
 # 访问 https://www.jetbrains.com/help/pycharm/ 获取 PyCharm 帮助
