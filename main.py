@@ -1391,7 +1391,9 @@ if __name__ == '__main__':
     now_time = datetime.datetime.now()
     if now_time.hour == 8 and now_time.minute == 0 and now_time.second == 0:
         G.sign()
-    if now_time.hour == 16 and now_time.minute == 0 and now_time.second == 0:
+    elif now_time.hour == 16 and now_time.minute == 0 and now_time.second == 0:
         G.dai()
+    else:
+        print("cookie保活成功")
 
 # 访问 https://www.jetbrains.com/help/pycharm/ 获取 PyCharm 帮助
