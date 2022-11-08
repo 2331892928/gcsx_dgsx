@@ -7,6 +7,7 @@ import random
 
 #########---------------------默认第一个实习计划，不可更改#######
 
+
 Cookie = ""
 internshipLocation = "重庆市重庆市江津区科教北路"
 city = "重庆市"
