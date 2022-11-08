@@ -1394,6 +1394,7 @@ if __name__ == '__main__':
     elif now_time.hour == 16 and now_time.minute == 0 and now_time.second == 0:
         G.dai()
     else:
-        print("cookie保活成功")
+        distributionId = G.get_student()
+        print("cookie保活成功,distributionId为：{}，若报错或distributionId为空，则是cookie失效".format(distributionId))
 
 # 访问 https://www.jetbrains.com/help/pycharm/ 获取 PyCharm 帮助
