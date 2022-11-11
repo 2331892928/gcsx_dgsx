@@ -14,7 +14,13 @@ internshipLocation = "重庆市重庆市江津区科教北路"
 #  实习城市
 city = "重庆市"
 #  日报内容
-dai_reportContent = ""
+dai_reportContent = "进行大数据技能大赛备赛"
+# 周报内容
+weeklyReportContent = "进行大数据技能大赛备赛"
+# 月报内容
+monthlyReportContent = "进行大数据技能大赛备赛"
+
+
 #########---------------------#######
 
 class User_Agent:
@@ -1328,6 +1334,10 @@ class Gcsx:
         self.y = None
         self.sign_href = "https://dgsx.cqvie.edu.cn/prod-api/internship_pending/signrecord"
         self.dai_href = "https://dgsx.cqvie.edu.cn/prod-api/internship_pending/dailyrecord"
+        self.week_href = "https://dgsx.cqvie.edu.cn/prod-api/baseinfo/week/student_list"
+        self.week_post_href = "https://dgsx.cqvie.edu.cn/prod-api/internship_pending/weekrecord"
+        self.month_href = "https://dgsx.cqvie.edu.cn/prod-api/internship_before/month/list_all"
+        self.month_post_href = "https://dgsx.cqvie.edu.cn/prod-api/internship_pending/monthrecord"
         self.get_gref = "https://dgsx.cqvie.edu.cn/prod-api/internship_pending/distribution/student_list"
         self.jwd()
 
@@ -1354,7 +1364,8 @@ class Gcsx:
     def get_student(self):
         res = requests.get(self.get_gref, headers=self.headers, cookies=self.cookie)
         distributionId = res.json()["data"][0]['distributionId']
-        return distributionId
+        internshipPlanId = res.json()["data"][0]['internshipPlanId']
+        return [distributionId, internshipPlanId]
 
     def sign(self):
         if self.x is None or self.y is None:
@@ -1371,7 +1382,7 @@ class Gcsx:
         print(res.content.decode())
 
     def dai(self):
-        distributionId = self.get_student()
+        distributionId = self.get_student()[0]
         times = time.time()
         local_time = time.localtime(times)
         rq = time.strftime("%Y-%m-%d", local_time)
@@ -1384,17 +1395,99 @@ class Gcsx:
         res = requests.post(self.dai_href, data=json.dumps(submit), headers=self.headers, cookies=self.cookie)
         print(res.content.decode())
 
+    def week(self):
+        detailedInformation = self.get_student()
+        distributionId = detailedInformation[0]
+        internshipPlanId = detailedInformation[1]
+        weekRes = requests.get(self.week_href + "?internshipPlanId=" + str(internshipPlanId), headers=self.headers,
+                               cookies=self.cookie)
+        weekJson = json.loads(weekRes.content.decode())
+        times = time.time()
+        local_time = time.localtime(times)
+        rq = time.strftime("%Y-%m-%d", local_time)
+        if "data" not in weekJson:
+            print("请求周次id错误")
+            return None
+        weekId = None
+        for i in weekJson['data']:
+            startDate = i['startDate']
+            endDate = i['endDate']
+            if endDate >= rq >= startDate:
+                weekId = i['semesterWeekId']
+                break
+        if weekId is None:
+            print("日报；你还没有开始实习或日期出错")
+            return
+        submit = {
+            "semesterWeekId": weekId,
+            "distributionId": distributionId,
+            "weekRecordContent": weeklyReportContent
+        }
+        res = requests.post(self.week_post_href, data=json.dumps(submit), headers=self.headers, cookies=self.cookie)
+        print(res.content.decode())
+
+    def month(self):
+        detailedInformation = self.get_student()
+        distributionId = detailedInformation[0]
+        internshipPlanId = detailedInformation[1]
+        monthRes = requests.get(self.month_href + "?internshipPlanId=" + str(internshipPlanId), headers=self.headers,
+                                cookies=self.cookie)
+        monthJson = json.loads(monthRes.content.decode())
+        times = time.time()
+        local_time = time.localtime(times)
+        rq = time.strftime("%Y-%m_", local_time)
+        rq = rq.replace("-", "年")
+        rq = rq.replace("_", "月")
+        if "data" not in monthJson:
+            print("请求周次id错误")
+            return None
+        monthId = None
+        for i in monthJson['data']:
+            if i["monthName"] == rq:
+                monthId = i['semesterMonthId']
+                break
+        if monthId is None:
+            print("月报；你还没有开始实习或日期出错")
+            return
+        submit = {
+            "monthRecordId": None,
+            "monthRecordType": None,
+            "monthWeekId": monthId,
+            "studentUserId": None,
+            "distributionId": distributionId,
+            "monthRecordDate": None,
+            "monthRecordTitle": rq + "的月报",
+            "monthRecordContent": monthlyReportContent,
+            "monthRecordTeacherScore": None,
+            "monthRecordTeacherComment": None,
+            "monthRecordTeacherUserId": None,
+            "monthRecordRatifyStatus": None,
+            "delFlag": None,
+            "createBy": None,
+            "createTime": None,
+            "updateBy": None,
+            "updateTime": None
+        }
+        res = requests.post(self.month_post_href, data=json.dumps(submit), headers=self.headers, cookies=self.cookie)
+        print(res.content.decode())
+
 
 # 按间距中的绿色按钮以运行脚本。
 if __name__ == '__main__':
     G = Gcsx()
     now_time = datetime.datetime.now()
-    if now_time.hour == 8 and now_time.minute == 0 and now_time.second == 0:
+
+    if now_time.hour == 8:
+        G.get_student()
         G.sign()
-    elif now_time.hour == 16 and now_time.minute == 0 and now_time.second == 0:
+    elif now_time.hour == 16:
         G.dai()
+    elif now_time.weekday() + 1 == 5 and now_time.hour == 17:
+        G.week()
+    elif now_time.day == 30 and now_time.hour == 18:
+        G.month()
     else:
-        distributionId = G.get_student()
+        distributionId = G.get_student()[0]
         print("cookie保活成功,distributionId为：{}，若报错或distributionId为空，则是cookie失效".format(distributionId))
 
 # 访问 https://www.jetbrains.com/help/pycharm/ 获取 PyCharm 帮助
