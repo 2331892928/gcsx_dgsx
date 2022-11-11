@@ -1449,6 +1449,17 @@ class Gcsx:
         if monthId is None:
             print("月报；你还没有开始实习或日期出错")
             return
+        # 查询是否已经填写，本月
+        # internshipPlanSemester个人信息页面是空的，可能固定5
+        res = requests.get("https://dgsx.cqvie.edu.cn/prod-api/internship_pending/monthrecord/list?internshipPlanSemester=5", headers=self.headers, cookies=self.cookie)
+        monthListJson = json.loads(res.content.decode())
+        if "rows" not in monthListJson:
+            print("请求月报列表错误")
+            return None
+        for i in monthListJson['rows']:
+            if i['monthName'] == rq:
+                print("本月已填写月报")
+                return None
         submit = {
             "monthRecordId": None,
             "monthRecordType": None,
@@ -1476,7 +1487,7 @@ class Gcsx:
 if __name__ == '__main__':
     G = Gcsx()
     now_time = datetime.datetime.now()
-
+    G.month()
     if now_time.hour == 8:
         G.get_student()
         G.sign()
