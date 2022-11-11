@@ -1495,7 +1495,7 @@ if __name__ == '__main__':
         G.dai()
     elif now_time.weekday() + 1 == 5 and now_time.hour == 17:
         G.week()
-    elif now_time.day == 30 and now_time.hour == 18:
+    elif now_time.day == 25 and now_time.hour == 18:
         G.month()
     else:
         distributionId = G.get_student()[0]
