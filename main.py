@@ -1487,7 +1487,7 @@ class Gcsx:
 if __name__ == '__main__':
     G = Gcsx()
     now_time = datetime.datetime.now()
-    G.month()
+
     if now_time.hour == 8:
         G.get_student()
         G.sign()
