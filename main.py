@@ -1,7 +1,6 @@
 import datetime
 import json
 import time
-import js2py
 import requests
 import random
 
