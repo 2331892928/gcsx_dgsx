@@ -1354,21 +1354,25 @@ class Gcsx:
         jwdhref = "https://api.map.baidu.com/geocoder?address={}&output=json&key=E4805d16520de693a3fe707cdc962045&city={}".format(
             internshipLocation, city)
         # 获取经纬度
-        try:
-            res = requests.get(jwdhref, headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36 MicroMessenger/7.0.9.501 NetType/WIFI MiniProgramEnv/Windows WindowsWechat"})
-            res_str = res.content.decode()
-            res_json = json.loads(res_str)
-            if res_json['status'] != "OK":
+        for i in range(0,5):
+            try:
+                s = requests.Session()
+                res = s.get(jwdhref, headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36 MicroMessenger/7.0.9.501 NetType/WIFI MiniProgramEnv/Windows WindowsWechat"})
+                res_str = res.content.decode()
+                res_json = json.loads(res_str)
+                if res_json['status'] != "OK":
+                    self.x = None
+                    self.y = None
+                    print("获取经纬度坐标错误，请联系作者或查看更新1")
+                self.x = res_json["result"]["location"]["lng"]
+                self.y = res_json["result"]["location"]["lat"]
+                break
+            except:
                 self.x = None
                 self.y = None
-                print("获取经纬度坐标错误，请联系作者或查看更新")
-            self.x = res_json["result"]["location"]["lng"]
-            self.y = res_json["result"]["location"]["lat"]
-        except:
-            self.x = None
-            self.y = None
-            print("获取经纬度坐标错误，请联系作者或查看更新")
+                print("获取经纬度坐标错误，请联系作者或查看更新2")
+                #  循环五次获取经纬度
 
     def get_student(self):
         res = requests.get(self.get_gref, headers=self.headers, cookies=self.cookie)
