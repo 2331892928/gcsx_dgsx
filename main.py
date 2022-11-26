@@ -1,7 +1,7 @@
 import datetime
 import json
 import time
-
+import js2py
 import requests
 import random
 
@@ -1328,7 +1328,8 @@ class Gcsx:
         self.cookie = {
             "sidebarStatus": "0",
             "wxSignUrl": "https://dgsx.cqvie.edu.cn/mobile/",
-            "Admin-Token": Cookie
+            "Admin-Token": Cookie,
+            "muyun_sign_javascript": ""
         }
         self.x = None
         self.y = None
@@ -1340,6 +1341,15 @@ class Gcsx:
         self.month_post_href = "https://dgsx.cqvie.edu.cn/prod-api/internship_pending/monthrecord"
         self.get_gref = "https://dgsx.cqvie.edu.cn/prod-api/internship_pending/distribution/student_list"
         self.jwd()
+        #  动态获取cookie
+        #  2022年11月25日 更新了muyun验证cookie，只要是能在浏览器看到的，请求头，返回头，请求对象，返回对象，会话，都可以程序获取
+        s = requests.Session()
+        r = s.get("https://dgsx.cqvie.edu.cn/index", headers=self.headers, cookies=self.cookie)
+        #  得到 muyun_sign_cookie从请求头获取，这里没看到返回头setcookie，是加了跳转，前端设置的cookie
+        self.cookie.update(s.cookies.get_dict())
+        #  获取muyun_sign_javascript,从前端获取
+        self.cookie['muyun_sign_javascript'] = self.take_middle_text(r.content.decode(), "'cookie' : \"", '",')
+
 
     def jwd(self):
         jwdhref = "https://api.map.baidu.com/geocoder?address={}&output=json&key=E4805d16520de693a3fe707cdc962045&city={}".format(
@@ -1363,9 +1373,20 @@ class Gcsx:
 
     def get_student(self):
         res = requests.get(self.get_gref, headers=self.headers, cookies=self.cookie)
+        # print(res.cookies.get("muyun_sign_javascript"))
         distributionId = res.json()["data"][0]['distributionId']
         internshipPlanId = res.json()["data"][0]['internshipPlanId']
         return [distributionId, internshipPlanId]
+        # s = requests.Session()
+        # r = s.get("https://dgsx.cqvie.edu.cn/prod-api/internship_pending/distribution/student_list",
+        #           headers=self.headers, cookies=self.cookie)
+        # cookies = self.take_middle_text(r.content.decode(), "'cookie' : \"", '",')
+        # cookie = self.cookie
+        # cookie['muyun_sign_javascript'] = cookies
+        # r = s.get("https://dgsx.cqvie.edu.cn/prod-api/internship_pending/distribution/student_list",
+        #           headers=self.headers, cookies=self.cookie)
+        # print(r.content.decode())
+
 
     def sign(self):
         if self.x is None or self.y is None:
@@ -1378,7 +1399,9 @@ class Gcsx:
             "longitude": self.x
         }
         submit = json.dumps(submit)
+
         res = requests.post(self.sign_href, data=submit, headers=self.headers, cookies=self.cookie)
+
         print(res.content.decode())
 
     def dai(self):
@@ -1392,6 +1415,7 @@ class Gcsx:
             "dailyRecordDate": rq,
             "dailyRecordContent": dai_reportContent,
         }
+
         res = requests.post(self.dai_href, data=json.dumps(submit), headers=self.headers, cookies=self.cookie)
         print(res.content.decode())
 
@@ -1451,7 +1475,9 @@ class Gcsx:
             return
         # 查询是否已经填写，本月
         # internshipPlanSemester个人信息页面是空的，可能固定5
-        res = requests.get("https://dgsx.cqvie.edu.cn/prod-api/internship_pending/monthrecord/list?internshipPlanSemester=5", headers=self.headers, cookies=self.cookie)
+        res = requests.get(
+            "https://dgsx.cqvie.edu.cn/prod-api/internship_pending/monthrecord/list?internshipPlanSemester=5",
+            headers=self.headers, cookies=self.cookie)
         monthListJson = json.loads(res.content.decode())
         if "rows" not in monthListJson:
             print("请求月报列表错误")
@@ -1482,12 +1508,33 @@ class Gcsx:
         res = requests.post(self.month_post_href, data=json.dumps(submit), headers=self.headers, cookies=self.cookie)
         print(res.content.decode())
 
+    def take_middle_text(self, txt, txt_s, txt_e='', seeks=0, seeke=0):  # 取中间文本函数
+        try:
+            if txt_e or seeks or seeke:
+                pass
+            else:
+                raise 1
+            s_1 = txt.find(txt_s)
+            if s_1 == -1:
+                raise 1
+            l_1 = len(txt_s)
+            if txt_e:
+                s_2 = txt.find(txt_e, s_1)
+                if s_1 == -1 or s_2 == -1:
+                    return False
+                return txt[s_1 + l_1:s_2]
+            if seeks:
+                return txt[s_1 - seeks:s_1]
+            if seeke:
+                return txt[s_1 + l_1:s_1 + l_1 + seeke]
+        except:
+            return None
+
 
 # 按间距中的绿色按钮以运行脚本。
 if __name__ == '__main__':
     G = Gcsx()
     now_time = datetime.datetime.now()
-
     if now_time.hour == 8:
         G.get_student()
         G.sign()
@@ -1495,7 +1542,7 @@ if __name__ == '__main__':
         G.dai()
     elif now_time.weekday() + 1 == 5 and now_time.hour == 17:
         G.week()
-    elif now_time.day == 25 and now_time.hour == 18:
+    elif now_time.day == 30 and now_time.hour == 18:
         G.month()
     else:
         distributionId = G.get_student()[0]
