@@ -1,13 +1,15 @@
 import datetime
 import json
-import time
-import requests
 import random
+import time
+
+import requests
 
 #########---------------------默认第一个实习计划，不可更改#######
 #  为保证cookie存活，请设置cron表达式为 0 1/1 * * * *  也就是每一分钟一次，本脚本会自动判断时间，早上8点签到，晚上4点日报
 #  cookie,具体查看https://github.com/2331892928/gcsx_dgsx
-Cookie = ""
+TOKEN = ""
+# Cookie = "eyJhbGciOiJIUzUxMiJ9.eyJsb2dpbl91c2VyX2tleSI6ImM2MWYxMGRhLTk1MTItNDQ3MS04Y2NkLTIzODcwNDdhODE3MyJ9.LhWDkxEaHteNxsPALcVD6kXw1GklX5qjMZSJmTz9irPCGEldNa5yH4vw0ZFebQKI-Vibp6EcDy0g0BmlsInHHQ"
 #  实习完整区域：城市+区+街道+具体地址
 internshipLocation = "重庆市重庆市江津区科教北路"
 #  实习城市
@@ -1316,18 +1318,33 @@ class User_Agent:
 class Gcsx:
     def __init__(self):
         ua = User_Agent()
+        user_agent = ua.random()
+        #  从2022年12月更新(可能，日志太多看不过来) cookie保活失效，改保活数字校园cookie，从数字校园跳转登陆到实习系统
+        #  获取
+        res = requests.get(
+            "http://ai.cqvie.edu.cn/ump/officeHall/getApplicationUrl?universityId=102574&appKey=pc-officeHall&timestamp=1670852672154&clientCategory=PC&applicationCode=HR0g30274",
+            cookies={
+                "ump_token_pc-officeHall": TOKEN
+            }, headers={
+                "User-Agent": user_agent,
+                "token": TOKEN
+            })
+        self.redirectUrl = res.json()['content']['redirectUrl']
+        self.ticket = res.json()['content']['ticket']
+
         self.headers = {
             "Referer": "https://dgsx.cqvie.edu.cn/mobile/index",
             "Origin": "https://dgsx.cqvie.edu.cn/",
+            "Host": "dgsx.cqvie.edu.cn",
             "Content-Type": "application/json;charset=UTF-8",
             # "Accept": "application/json, text/plain, */*",
-            "User-Agent": ua.random(),
-            "Authorization": "Bearer " + Cookie
+            "User-Agent": user_agent,
+            "Authorization": "Bearer " + ""
         }
         self.cookie = {
             "sidebarStatus": "0",
             "wxSignUrl": "https://dgsx.cqvie.edu.cn/mobile/",
-            "Admin-Token": Cookie,
+            "Admin-Token": "",
             "muyun_sign_javascript": ""
         }
         self.x = None
@@ -1346,11 +1363,33 @@ class Gcsx:
         #  动态获取cookie
         #  2022年11月25日 更新了muyun验证cookie，只要是能在浏览器看到的，请求头，返回头，请求对象，返回对象，会话，都可以程序获取
         s = requests.Session()
-        r = s.get("https://dgsx.cqvie.edu.cn/index", headers=self.headers, cookies=self.cookie)
+        # r = s.get("https://dgsx.cqvie.edu.cn/index", headers=self.headers, cookies=self.cookie)  旧，采用手动填ADMIN-TOKEN
+        #  新，采用数字校园token
+        r = s.get(self.redirectUrl, headers={
+            "Host": "dgsx.cqvie.edu.cn",
+            "User-Agent": user_agent
+        })
         #  得到 muyun_sign_cookie从请求头获取，这里没看到返回头setcookie，是加了跳转，前端设置的cookie
         self.cookie.update(s.cookies.get_dict())
         #  获取muyun_sign_javascript,从前端获取
         self.cookie['muyun_sign_javascript'] = self.take_middle_text(r.content.decode(), "'cookie' : \"", '",')
+
+        cookie2 = {
+            "muyun_sign_javascript":self.take_middle_text(r.content.decode(), "'cookie' : \"", '",')
+        }
+        s.get(self.redirectUrl,headers={
+            "Host": "dgsx.cqvie.edu.cn",
+            "User-Agent": user_agent
+        },cookies=cookie2)
+        self.cookie.update({
+            "Admin-Token":s.cookies.get_dict()['Admin-Token']
+        })
+        self.headers.update({
+            "Authorization": "Bearer " + s.cookies.get_dict()['Admin-Token']
+        })
+
+
+
 
     def jwd(self):
         jwdhref = "https://api.map.baidu.com/geocoder?address={}&output=json&key=E4805d16520de693a3fe707cdc962045&city={}".format(
@@ -1431,7 +1470,7 @@ class Gcsx:
         #  提取未签到日期
         #  上一次日期减去，相差不是1则是少写日报，补上
         try:
-            for i,v in enumerate(all_time):
+            for i, v in enumerate(all_time):
                 if i == 0:
                     continue
                 #  上一次日期减去，相差不是1则是少写日报，补上
@@ -1491,7 +1530,8 @@ class Gcsx:
             #  睡一会，防止请求过快
             time.sleep(3)
             #  本采用分页，但逻辑上可以全部，如需分页：pageNum页码，pageSize一页几个(10) internshipPlanSemester 实习计划，作者的字段是5，应该不要
-            res = requests.get(self.dai_list_href+"?signInternshipPlanId="+distributionId, headers=self.headers, cookies=self.cookie)
+            res = requests.get(self.dai_list_href + "?signInternshipPlanId=" + distributionId, headers=self.headers,
+                               cookies=self.cookie)
             daily_report_date_not_written = []
             all_time = []
             #  对这些先排序，res.json()['rows'],先提取其中日期
@@ -1565,31 +1605,32 @@ class Gcsx:
             time.sleep(3)
             #  本采用分页，但逻辑上可以全部，如需分页：pageNum页码，pageSize一页几个(10) internshipPlanSemester 实习计划，作者的字段是5，应该不要
             #  检测周次是否未写
-            res = requests.get(self.week_list_href+"?signInternshipPlanId="+distributionId, headers=self.headers, cookies=self.cookie)
+            res = requests.get(self.week_list_href + "?signInternshipPlanId=" + distributionId, headers=self.headers,
+                               cookies=self.cookie)
             date_weekly_report_not_written = []
             all_week = []
             all_week_json = {}
             #  先对已写排序
             for i in res.json()['rows']:
                 now_week_time = self.take_middle_text(i['semesterWeekName'], "第", "周")
-                last_time = self.take_middle_text(i['semesterWeekName'],"~",")")
+                last_time = self.take_middle_text(i['semesterWeekName'], "~", ")")
                 all_week.append(now_week_time)
                 all_week_json.update({
-                    now_week_time:last_time
+                    now_week_time: last_time
                 })
             all_week.sort(reverse=True)
             #  上一次日期减去，相差不是1则是少写，补上，提取周次日期后提取周次id
             for i, v in enumerate(all_week):
                 if i == 0:
                     continue
-                sc = int(all_week[i-1]) - int(v)
+                sc = int(all_week[i - 1]) - int(v)
                 if sc != 1:
-                    for j in range(1,sc):
+                    for j in range(1, sc):
                         now_time = all_week_json[str(v)]
-                        now_time = datetime.datetime.strptime(now_time,"%Y-%m-%d")
+                        now_time = datetime.datetime.strptime(now_time, "%Y-%m-%d")
 
                         #  将第一个相差周的最后时间记录起来，相差1就是（1-1）*7+1天，相差2周就是(2-1)*7 +1
-                        sc_day = (j-1)*7+1
+                        sc_day = (j - 1) * 7 + 1
                         sc_day_time = datetime.timedelta(days=sc_day)
                         new_time = now_time + sc_day_time
                         new_time_str = new_time.strftime("%Y-%m-%d")
@@ -1624,7 +1665,6 @@ class Gcsx:
             res = requests.post(self.week_post_href, data=json.dumps(submit), headers=self.headers, cookies=self.cookie)
             print(res.content.decode())
             time.sleep(3)
-
 
     def month(self):
         detailedInformation = self.get_student()
@@ -1720,6 +1760,17 @@ if __name__ == '__main__':
     elif now_time.day == 28 and now_time.hour == 18:
         G.month()
     else:
+        #  新。保活数字校园 在初始化类已保活
+        # millis = int(round(time.time() * 1000))
+        # r = requests.get("http://ai.cqvie.edu.cn/ump/serveCenter/selectSearchLog?universityId=102574&appKey=pc-officeHall&timestamp={}&nonce=19953459758032&clientCategory=PC&pageNum=1&pageSize=10".format(millis),headers={
+        #     "Host": "dgsx.cqvie.edu.cn",
+        #     "Referer": "http://ai.cqvie.edu.cn/new_office_hall/",
+        #     "token":TOKEN,
+        #     ""
+        # },cookies={
+        #     "ump_token_pc-officeHall":TOKEN
+        # })
+        # print(r.content.decode())
         distributionId = G.get_student()[0]
         print("cookie保活成功,distributionId为：{}，若报错或distributionId为空，则是cookie失效".format(distributionId))
 
