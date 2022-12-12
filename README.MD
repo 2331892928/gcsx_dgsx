@@ -1,5 +1,6 @@
 # 重庆工程职业技术学院实习系统自动签到，自动日报周报月报
-cookie方法：进入实习系统查看cookie，只取Admin-Token字段，不包含Admin-Token
+~~cookie方法：进入实习系统查看cookie，只取Admin-Token字段，不包含Admin-Token~~脚本提交日期2022年12月12日以前方法  
+2022年12月12日提交日期后方法：进入重庆工程职业技术校园数字校园(电脑版本)，只取ump_token_pc-officeHall字段，不包含ump_token_pc-officeHall
 #  脚本功能
 自动日报
 自动补日报
