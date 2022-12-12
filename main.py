@@ -1456,7 +1456,7 @@ class Gcsx:
             #  睡一会，防止请求过快
             time.sleep(3)
             #  本采用分页，但逻辑上可以全部，如需分页：pageNum页码，pageSize一页几个(10) internshipPlanSemester 实习计划，作者的字段是5，应该不要
-            res = requests.get(self.dai_list_href, headers=self.headers, cookies=self.cookie)
+            res = requests.get(self.dai_list_href+"?signInternshipPlanId="+distributionId, headers=self.headers, cookies=self.cookie)
             daily_report_date_not_written = []
             all_time = []
             #  对这些先排序，res.json()['rows'],先提取其中日期
@@ -1530,31 +1530,31 @@ class Gcsx:
             time.sleep(3)
             #  本采用分页，但逻辑上可以全部，如需分页：pageNum页码，pageSize一页几个(10) internshipPlanSemester 实习计划，作者的字段是5，应该不要
             #  检测周次是否未写
-            res = requests.get(self.week_list_href, headers=self.headers, cookies=self.cookie)
+            res = requests.get(self.week_list_href+"?signInternshipPlanId="+distributionId, headers=self.headers, cookies=self.cookie)
             date_weekly_report_not_written = []
             all_week = []
             all_week_json = {}
             #  先对已写排序
             for i in res.json()['rows']:
                 now_week_time = self.take_middle_text(i['semesterWeekName'], "第", "周")
-                last_time = self.take_middle_text(i['semesterWeekName'], "~", ")")
+                last_time = self.take_middle_text(i['semesterWeekName'],"~",")")
                 all_week.append(now_week_time)
                 all_week_json.update({
-                    now_week_time: last_time
+                    now_week_time:last_time
                 })
             all_week.sort(reverse=True)
             #  上一次日期减去，相差不是1则是少写，补上，提取周次日期后提取周次id
             for i, v in enumerate(all_week):
                 if i == 0:
                     continue
-                sc = int(all_week[i - 1]) - int(v)
+                sc = int(all_week[i-1]) - int(v)
                 if sc != 1:
-                    for j in range(1, sc):
+                    for j in range(1,sc):
                         now_time = all_week_json[str(v)]
-                        now_time = datetime.datetime.strptime(now_time, "%Y-%m-%d")
+                        now_time = datetime.datetime.strptime(now_time,"%Y-%m-%d")
 
                         #  将第一个相差周的最后时间记录起来，相差1就是（1-1）*7+1天，相差2周就是(2-1)*7 +1
-                        sc_day = (j - 1) * 7 + 1
+                        sc_day = (j-1)*7+1
                         sc_day_time = datetime.timedelta(days=sc_day)
                         new_time = now_time + sc_day_time
                         new_time_str = new_time.strftime("%Y-%m-%d")
@@ -1589,6 +1589,7 @@ class Gcsx:
             res = requests.post(self.week_post_href, data=json.dumps(submit), headers=self.headers, cookies=self.cookie)
             print(res.content.decode())
             time.sleep(3)
+
 
     def month(self):
         detailedInformation = self.get_student()
