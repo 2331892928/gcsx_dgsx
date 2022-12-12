@@ -15,9 +15,9 @@ city = "重庆市"
 #  日报内容
 dai_reportContent = "进行大数据技能大赛备赛"
 # 周报内容
-weeklyReportContent = "进行大数据技能大赛备赛"
+weeklyReportContent = "进行大数据技能大赛备赛，顺便进行专升本考试的准备，两手准备。虽然专升本准备因为比赛拖延到至今，但我相信只要自己努力，肯定能考个200~250分"
 # 月报内容
-monthlyReportContent = "进行大数据技能大赛备赛"
+monthlyReportContent = "进行大数据技能大赛备赛，顺便进行专升本考试的准备，两手准备。虽然专升本准备因为比赛拖延到至今，但我相信只要自己努力，肯定能考个200~250分"
 
 
 #########---------------------#######
@@ -1279,7 +1279,7 @@ class User_Agent:
     def random(self):
         a = str(random.randint(0, 984))
         b = self.user_agent['randomize'][a]
-        c = random.randint(0, len(self.user_agent["browsers"][b]))
+        c = random.randint(0, len(self.user_agent["browsers"][b]) - 1)
         return self.user_agent["browsers"][b][c]
 
     def chrome(self):
@@ -1333,8 +1333,11 @@ class Gcsx:
         self.x = None
         self.y = None
         self.sign_href = "https://dgsx.cqvie.edu.cn/prod-api/internship_pending/signrecord"
+        self.sign_list_href = "https://dgsx.cqvie.edu.cn/prod-api/internship_pending/signrecord/list_all"
         self.dai_href = "https://dgsx.cqvie.edu.cn/prod-api/internship_pending/dailyrecord"
+        self.dai_list_href = "https://dgsx.cqvie.edu.cn/prod-api/internship_pending/dailyrecord/list"
         self.week_href = "https://dgsx.cqvie.edu.cn/prod-api/baseinfo/week/student_list"
+        self.week_list_href = "https://dgsx.cqvie.edu.cn/prod-api/internship_pending/weekrecord/list"
         self.week_post_href = "https://dgsx.cqvie.edu.cn/prod-api/internship_pending/weekrecord"
         self.month_href = "https://dgsx.cqvie.edu.cn/prod-api/internship_before/month/list_all"
         self.month_post_href = "https://dgsx.cqvie.edu.cn/prod-api/internship_pending/monthrecord"
@@ -1349,12 +1352,11 @@ class Gcsx:
         #  获取muyun_sign_javascript,从前端获取
         self.cookie['muyun_sign_javascript'] = self.take_middle_text(r.content.decode(), "'cookie' : \"", '",')
 
-
     def jwd(self):
         jwdhref = "https://api.map.baidu.com/geocoder?address={}&output=json&key=E4805d16520de693a3fe707cdc962045&city={}".format(
             internshipLocation, city)
         # 获取经纬度
-        for i in range(0,5):
+        while True:
             try:
                 s = requests.Session()
                 res = s.get(jwdhref, headers={
@@ -1367,11 +1369,13 @@ class Gcsx:
                     print("获取经纬度坐标错误，请联系作者或查看更新1")
                 self.x = res_json["result"]["location"]["lng"]
                 self.y = res_json["result"]["location"]["lat"]
+                print("获取经纬度坐标成功")
                 break
             except:
                 self.x = None
                 self.y = None
-                print("获取经纬度坐标错误，请联系作者或查看更新2")
+                time.sleep(1)
+                print("获取经纬度坐标错误，重试中...")
                 #  循环五次获取经纬度
 
     def get_student(self):
@@ -1379,7 +1383,8 @@ class Gcsx:
         # print(res.cookies.get("muyun_sign_javascript"))
         distributionId = res.json()["data"][0]['distributionId']
         internshipPlanId = res.json()["data"][0]['internshipPlanId']
-        return [distributionId, internshipPlanId]
+        internshipPlanStartDate = res.json()["data"][0]['internshipPlanStartDate']
+        return [distributionId, internshipPlanId, internshipPlanStartDate]
         # s = requests.Session()
         # r = s.get("https://dgsx.cqvie.edu.cn/prod-api/internship_pending/distribution/student_list",
         #           headers=self.headers, cookies=self.cookie)
@@ -1390,29 +1395,55 @@ class Gcsx:
         #           headers=self.headers, cookies=self.cookie)
         # print(r.content.decode())
 
-
     def sign(self):
         if self.x is None or self.y is None:
             return
-        submit = {
-            "latitude": self.y,
-            "signAddress": internshipLocation,
-            "signDate": datetime.datetime.now().isoformat(),
-            # "2022-11-08T09:02:24.892Z"
-            "longitude": self.x
-        }
-        submit = json.dumps(submit)
+        #  从课程开始检查，没签到的统统签到，补签
+        #  获取课程信息
+        student_list = G.get_student()
+        internshipPlanStartDate = student_list[2]
+        signInternshipPlanId = student_list[0]
+        # internshipPlanStartDate_str = str(dateparser.parse(internshipPlanStartDate).date())
+        res = requests.get(self.sign_list_href + "?signInternshipPlanId=" + str(signInternshipPlanId),
+                           headers=self.headers, cookies=self.cookie)
+        unsignedDate = []
+        try:
+            #  提取未签到日期
+            for i in res.json()['data']:
+                if i['delFlag'] == '1':
+                    unsignedDate.append(i['signDate'])
+        except:
+            return
+        for i in unsignedDate:
+            before_time = datetime.datetime.strptime(i, "%Y-%m-%d")
+            #  伪造签到时间
+            millisecond = random.randint(0, 1000000)
+            now_time = str(
+                datetime.datetime(before_time.year, before_time.month, before_time.day, 8, 0, 0, millisecond))
+            #  现在签到时间
+            if before_time.year == datetime.datetime.now().year and before_time.month == datetime.datetime.now().month and before_time.day == datetime.datetime.now().day:
+                now_time = datetime.datetime.now().isoformat()
+            submit = {
+                "latitude": self.y,
+                "signAddress": internshipLocation,
+                "signDate": now_time,
+                # "2022-11-08T09:02:24.892Z"
+                "longitude": self.x
+            }
+            submit = json.dumps(submit)
 
-        res = requests.post(self.sign_href, data=submit, headers=self.headers, cookies=self.cookie)
+            res = requests.post(self.sign_href, data=submit, headers=self.headers, cookies=self.cookie)
 
-        print(res.content.decode())
+            print(res.content.decode())
+            #  停顿一会，防止请求过快
+            time.sleep(3)
 
     def dai(self):
         distributionId = self.get_student()[0]
         times = time.time()
         local_time = time.localtime(times)
         rq = time.strftime("%Y-%m-%d", local_time)
-
+        #  先签到本日，否则检测未签到日期不正确
         submit = {
             "distributionId": distributionId,
             "dailyRecordDate": rq,
@@ -1421,6 +1452,47 @@ class Gcsx:
 
         res = requests.post(self.dai_href, data=json.dumps(submit), headers=self.headers, cookies=self.cookie)
         print(res.content.decode())
+        try:
+            #  睡一会，防止请求过快
+            time.sleep(3)
+            #  本采用分页，但逻辑上可以全部，如需分页：pageNum页码，pageSize一页几个(10) internshipPlanSemester 实习计划，作者的字段是5，应该不要
+            res = requests.get(self.dai_list_href, headers=self.headers, cookies=self.cookie)
+            daily_report_date_not_written = []
+            all_time = []
+            #  对这些先排序，res.json()['rows'],先提取其中日期
+            for i, v in enumerate(res.json()['rows']):
+                all_time.append(v['dailyRecordDate'])
+            all_time.sort(reverse=True)
+
+            for i, v in enumerate(all_time):
+                if i == 0:
+                    continue
+                #  上一次日期减去，相差不是1则是少写日报，补上
+                now_time = datetime.datetime.strptime(v, "%Y-%m-%d")
+                before_time = datetime.datetime.strptime(all_time[i - 1], "%Y-%m-%d")
+                xc = (before_time - now_time).days
+                if xc != 1:
+                    #  获取未写日报日期
+                    for j in range(1, xc):
+                        xc_time = before_time - datetime.timedelta(days=j)
+                        #  检测是否是周六周天，不进入未写日报日期
+                        if xc_time.weekday() + 1 == 6 or xc_time.weekday() + 1 == 7:
+                            continue
+                        xc_time_str = xc_time.strftime("%Y-%m-%d")
+                        daily_report_date_not_written.append(xc_time_str)
+        except:
+            return
+        for i in daily_report_date_not_written:
+            submit = {
+                "distributionId": distributionId,
+                "dailyRecordDate": i,
+                "dailyRecordContent": dai_reportContent,
+            }
+
+            res = requests.post(self.dai_href, data=json.dumps(submit), headers=self.headers, cookies=self.cookie)
+            print(res.content.decode())
+            #  睡一会，防止请求过快
+            time.sleep(3)
 
     def week(self):
         detailedInformation = self.get_student()
@@ -1445,6 +1517,7 @@ class Gcsx:
         if weekId is None:
             print("日报；你还没有开始实习或日期出错")
             return
+        #  先写本周的，否则检测周次未写不正确
         submit = {
             "semesterWeekId": weekId,
             "distributionId": distributionId,
@@ -1452,6 +1525,70 @@ class Gcsx:
         }
         res = requests.post(self.week_post_href, data=json.dumps(submit), headers=self.headers, cookies=self.cookie)
         print(res.content.decode())
+        try:
+            #  睡一会
+            time.sleep(3)
+            #  本采用分页，但逻辑上可以全部，如需分页：pageNum页码，pageSize一页几个(10) internshipPlanSemester 实习计划，作者的字段是5，应该不要
+            #  检测周次是否未写
+            res = requests.get(self.week_list_href, headers=self.headers, cookies=self.cookie)
+            date_weekly_report_not_written = []
+            all_week = []
+            all_week_json = {}
+            #  先对已写排序
+            for i in res.json()['rows']:
+                now_week_time = self.take_middle_text(i['semesterWeekName'], "第", "周")
+                last_time = self.take_middle_text(i['semesterWeekName'], "~", ")")
+                all_week.append(now_week_time)
+                all_week_json.update({
+                    now_week_time: last_time
+                })
+            all_week.sort(reverse=True)
+            #  上一次日期减去，相差不是1则是少写，补上，提取周次日期后提取周次id
+            for i, v in enumerate(all_week):
+                if i == 0:
+                    continue
+                sc = int(all_week[i - 1]) - int(v)
+                if sc != 1:
+                    for j in range(1, sc):
+                        now_time = all_week_json[str(v)]
+                        now_time = datetime.datetime.strptime(now_time, "%Y-%m-%d")
+
+                        #  将第一个相差周的最后时间记录起来，相差1就是（1-1）*7+1天，相差2周就是(2-1)*7 +1
+                        sc_day = (j - 1) * 7 + 1
+                        sc_day_time = datetime.timedelta(days=sc_day)
+                        new_time = now_time + sc_day_time
+                        new_time_str = new_time.strftime("%Y-%m-%d")
+
+                        #  根据日期区间查找周次id
+                        weekRes = requests.get(self.week_href + "?internshipPlanId=" + str(internshipPlanId),
+                                               headers=self.headers,
+                                               cookies=self.cookie)
+                        weekJson = json.loads(weekRes.content.decode())
+                        if "data" not in weekJson:
+                            print("请求周次id错误")
+                            continue
+                        weekId = None
+                        for k in weekJson['data']:
+                            startDate = k['startDate']
+                            endDate = k['endDate']
+                            if endDate >= new_time_str >= startDate:
+                                weekId = k['semesterWeekId']
+                                break
+                        if weekId is None:
+                            print("日报；你还没有开始实习或日期出错")
+                            continue
+                        date_weekly_report_not_written.append(weekId)
+        except:
+            return
+        for i in date_weekly_report_not_written:
+            submit = {
+                "semesterWeekId": i,
+                "distributionId": distributionId,
+                "weekRecordContent": weeklyReportContent
+            }
+            res = requests.post(self.week_post_href, data=json.dumps(submit), headers=self.headers, cookies=self.cookie)
+            print(res.content.decode())
+            time.sleep(3)
 
     def month(self):
         detailedInformation = self.get_student()
@@ -1539,13 +1676,12 @@ if __name__ == '__main__':
     G = Gcsx()
     now_time = datetime.datetime.now()
     if now_time.hour == 8:
-        G.get_student()
         G.sign()
     elif now_time.hour == 16:
         G.dai()
     elif now_time.weekday() + 1 == 5 and now_time.hour == 17:
         G.week()
-    elif now_time.day == 30 and now_time.hour == 18:
+    elif now_time.day == 28 and now_time.hour == 18:
         G.month()
     else:
         distributionId = G.get_student()[0]
