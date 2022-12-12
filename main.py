@@ -1403,15 +1403,50 @@ class Gcsx:
         student_list = G.get_student()
         internshipPlanStartDate = student_list[2]
         signInternshipPlanId = student_list[0]
+        #  先签到今日
+        now_time = datetime.datetime.now().isoformat()
+        submit = {
+            "latitude": self.y,
+            "signAddress": internshipLocation,
+            "signDate": now_time,
+            # "2022-11-08T09:02:24.892Z"
+            "longitude": self.x
+        }
+        submit = json.dumps(submit)
+
+        res = requests.post(self.sign_href, data=submit, headers=self.headers, cookies=self.cookie)
+
+        print(res.content.decode())
+        #  停顿一会，防止请求过快
+        time.sleep(3)
+
         # internshipPlanStartDate_str = str(dateparser.parse(internshipPlanStartDate).date())
         res = requests.get(self.sign_list_href + "?signInternshipPlanId=" + str(signInternshipPlanId),
                            headers=self.headers, cookies=self.cookie)
         unsignedDate = []
+        all_time = []
+        for i in res.json()['data']:
+            all_time.append(i['signDate'])
+        all_time.sort(reverse=True)
+        #  提取未签到日期
+        #  上一次日期减去，相差不是1则是少写日报，补上
         try:
-            #  提取未签到日期
-            for i in res.json()['data']:
-                if i['delFlag'] == '1':
-                    unsignedDate.append(i['signDate'])
+            for i,v in enumerate(all_time):
+                if i == 0:
+                    continue
+                #  上一次日期减去，相差不是1则是少写日报，补上
+                now_time = datetime.datetime.strptime(v, "%Y-%m-%d")
+                before_time = datetime.datetime.strptime(all_time[i - 1], "%Y-%m-%d")
+                xc = (before_time - now_time).days
+                if xc != 1:
+                    #  获取未写签到日期
+                    for j in range(1, xc):
+                        xc_time = before_time - datetime.timedelta(days=j)
+                        #  检测是否是周六周天，不进入
+                        if xc_time.weekday() + 1 == 6 or xc_time.weekday() + 1 == 7:
+                            continue
+                        xc_time_str = xc_time.strftime("%Y-%m-%d")
+                        unsignedDate.append(xc_time_str)
         except:
             return
         for i in unsignedDate:
