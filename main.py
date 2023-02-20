@@ -1326,17 +1326,24 @@ class Gcsx:
         #  从2022年12月更新(可能，日志太多看不过来) cookie保活失效，改保活数字校园cookie，从数字校园跳转登陆到实习系统
         #  获取
         res = requests.get(
-            "http://ai.cqvie.edu.cn/ump/officeHall/getApplicationUrl?universityId=102574&appKey=pc-officeHall&timestamp={}&clientCategory=PC&applicationCode=HR0g30274".format(int(round(time.time()*1000))),
+            # "http://ai.cqvie.edu.cn/ump/officeHall/getApplicationUrl?universityId=102574&appKey=pc-officeHall&timestamp={}&clientCategory=PC&applicationCode=HR0g30274".format(int(round(time.time()*1000))),
+            "http://ai.cqvie.edu.cn/ump/officeHall/getApplicationUrl?appKey=mobileplatform&appVersion=5.3.04&applicationCode=HR0g30274&clientCategory=IOS&equipmentId=BF10F120-1894-442C-A110-F21FB273AED1&equipmentName=iPhone11&equipmentVersion=16.2&nonce=1676887542046OADFSHBWPQWWK&sign=5D27B0B10DA12FA635FC53DD03971645&timestamp={}&universityId=102574&userType=STUDENT".format(int(round(time.time()*1000))),
             cookies={
-                "ump_token_pc-officeHall": TOKEN,
-                "_yh_sys_ticket": TOKEN,
-                "_yh_sys_token": TOKEN
+                # "ump_token_pc-officeHall": TOKEN,
+                # "_yh_sys_ticket": TOKEN,
+                # "_yh_sys_token": TOKEN,
+                "token": TOKEN,
             }, headers={
                 "User-Agent": user_agent,
                 "token": TOKEN
             })
-        self.redirectUrl = res.json()['content']['redirectUrl']
-        self.ticket = res.json()['content']['ticket']
+        try:
+
+            self.redirectUrl = res.json()['content']['redirectUrl']
+            self.ticket = res.json()['content']['ticket']
+        except:
+            print(res.content.decode())
+            traceback.print_exc()
 
         self.headers = {
             "Referer": "https://dgsx.cqvie.edu.cn/mobile/index",
