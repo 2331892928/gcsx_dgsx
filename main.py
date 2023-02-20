@@ -2,6 +2,7 @@ import datetime
 import json
 import random
 import time
+import traceback
 
 import requests
 
@@ -12,10 +13,13 @@ TOKEN = ""
 # Cookie = "eyJhbGciOiJIUzUxMiJ9.eyJsb2dpbl91c2VyX2tleSI6ImM2MWYxMGRhLTk1MTItNDQ3MS04Y2NkLTIzODcwNDdhODE3MyJ9.LhWDkxEaHteNxsPALcVD6kXw1GklX5qjMZSJmTz9irPCGEldNa5yH4vw0ZFebQKI-Vibp6EcDy0g0BmlsInHHQ"
 #  实习完整区域：城市+区+街道+具体地址
 internshipLocation = "重庆市重庆市江津区科教北路"
+
+# 实习计划课程号
+course_no = 0
 #  实习城市
 city = "重庆市"
 #  日报内容
-dai_reportContent = "进行大数据技能大赛备赛"
+dai_reportContent = "进行大数据技能大赛备赛,及准备4月1日的专升本"
 # 周报内容
 weeklyReportContent = "进行大数据技能大赛备赛，顺便进行专升本考试的准备，两手准备。虽然专升本准备因为比赛拖延到至今，但我相信只要自己努力，肯定能考个200~250分"
 # 月报内容
@@ -1322,9 +1326,11 @@ class Gcsx:
         #  从2022年12月更新(可能，日志太多看不过来) cookie保活失效，改保活数字校园cookie，从数字校园跳转登陆到实习系统
         #  获取
         res = requests.get(
-            "http://ai.cqvie.edu.cn/ump/officeHall/getApplicationUrl?universityId=102574&appKey=pc-officeHall&timestamp=1670852672154&clientCategory=PC&applicationCode=HR0g30274",
+            "http://ai.cqvie.edu.cn/ump/officeHall/getApplicationUrl?universityId=102574&appKey=pc-officeHall&timestamp={}&clientCategory=PC&applicationCode=HR0g30274".format(int(round(time.time()*1000))),
             cookies={
-                "ump_token_pc-officeHall": TOKEN
+                "ump_token_pc-officeHall": TOKEN,
+                "_yh_sys_ticket": TOKEN,
+                "_yh_sys_token": TOKEN
             }, headers={
                 "User-Agent": user_agent,
                 "token": TOKEN
@@ -1411,6 +1417,7 @@ class Gcsx:
                 print("获取经纬度坐标成功")
                 break
             except:
+                # print(traceback.format_exc())
                 self.x = None
                 self.y = None
                 time.sleep(1)
@@ -1418,11 +1425,18 @@ class Gcsx:
                 #  循环五次获取经纬度
 
     def get_student(self):
+        distributionId = None
+        internshipPlanId = None
+        internshipPlanStartDate = None
         res = requests.get(self.get_gref, headers=self.headers, cookies=self.cookie)
         # print(res.cookies.get("muyun_sign_javascript"))
-        distributionId = res.json()["data"][0]['distributionId']
-        internshipPlanId = res.json()["data"][0]['internshipPlanId']
-        internshipPlanStartDate = res.json()["data"][0]['internshipPlanStartDate']
+        for i in res.json()["data"]:
+            if str(i['internshipPlanName']).find(str(course_no)) != -1:
+                distributionId = i['distributionId']
+                internshipPlanId = i['internshipPlanId']
+                internshipPlanStartDate = i['internshipPlanStartDate']
+        if distributionId is None:
+            print("课程号不正确")
         return [distributionId, internshipPlanId, internshipPlanStartDate]
         # s = requests.Session()
         # r = s.get("https://dgsx.cqvie.edu.cn/prod-api/internship_pending/distribution/student_list",
