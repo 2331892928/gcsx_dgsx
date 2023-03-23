@@ -10,7 +10,6 @@ import requests
 #  为保证cookie存活，请设置cron表达式为 0 1/1 * * * *  也就是每一分钟一次，本脚本会自动判断时间，早上8点签到，晚上4点日报
 #  cookie,具体查看https://github.com/2331892928/gcsx_dgsx
 TOKEN = ""
-# Cookie = "eyJhbGciOiJIUzUxMiJ9.eyJsb2dpbl91c2VyX2tleSI6ImM2MWYxMGRhLTk1MTItNDQ3MS04Y2NkLTIzODcwNDdhODE3MyJ9.LhWDkxEaHteNxsPALcVD6kXw1GklX5qjMZSJmTz9irPCGEldNa5yH4vw0ZFebQKI-Vibp6EcDy0g0BmlsInHHQ"
 #  实习完整区域：城市+区+街道+具体地址
 internshipLocation = "重庆市重庆市江津区科教北路"
 
@@ -1551,7 +1550,7 @@ class Gcsx:
             #  睡一会，防止请求过快
             time.sleep(3)
             #  本采用分页，但逻辑上可以全部，如需分页：pageNum页码，pageSize一页几个(10) internshipPlanSemester 实习计划，作者的字段是5，应该不要
-            res = requests.get(self.dai_list_href + "?signInternshipPlanId=" + distributionId, headers=self.headers,
+            res = requests.get(self.dai_list_href + "?distributionId={}".format(distributionId), headers=self.headers,
                                cookies=self.cookie)
             daily_report_date_not_written = []
             all_time = []
@@ -1626,7 +1625,7 @@ class Gcsx:
             time.sleep(3)
             #  本采用分页，但逻辑上可以全部，如需分页：pageNum页码，pageSize一页几个(10) internshipPlanSemester 实习计划，作者的字段是5，应该不要
             #  检测周次是否未写
-            res = requests.get(self.week_list_href + "?signInternshipPlanId=" + distributionId, headers=self.headers,
+            res = requests.get(self.week_list_href + "?distributionId={}".format(distributionId), headers=self.headers,
                                cookies=self.cookie)
             date_weekly_report_not_written = []
             all_week = []
@@ -1712,10 +1711,14 @@ class Gcsx:
             return
         # 查询是否已经填写，本月
         # internshipPlanSemester个人信息页面是空的，可能固定5
-        res = requests.get(
-            "https://dgsx.cqvie.edu.cn/prod-api/internship_pending/monthrecord/list?internshipPlanSemester=5",
+        # 2023年3月23日已提取到，这是学期号，默认最新获取
+        res = requests.get("https://dgsx.cqvie.edu.cn/prod-api/baseinfo/semester/list_all",headers=self.headers, cookies=self.cookie)
+        internshipPlanSemester = res.json()['data'][0]['semesterId']
+        res = requests.get("https://dgsx.cqvie.edu.cn/prod-api/internship_pending/monthrecord/list"
+                           "?internshipPlanSemester=".format(internshipPlanSemester),
             headers=self.headers, cookies=self.cookie)
         monthListJson = json.loads(res.content.decode())
+
         if "rows" not in monthListJson:
             print("请求月报列表错误")
             return None
